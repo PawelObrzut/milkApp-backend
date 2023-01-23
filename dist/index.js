@@ -15,11 +15,22 @@ app.get('/', (req, res) => {
 app.route('/api/milk')
     .get((req, res) => {
     if (req.query.limit && req.query.page) {
-        const num = +req.query.limit;
-        const pag = +req.query.page;
+        const limit = +req.query.limit;
+        const page = +req.query.page;
+        const startIndex = (page - 1) * limit;
+        const endIndex = page * limit;
+        const responseData = {
+            result: milk_json_1.default.results.slice(startIndex, endIndex)
+        };
+        if (startIndex > 0) {
+            responseData.previous = page - 1;
+        }
+        if (endIndex < milk_json_1.default.results.length) {
+            responseData.next = page + 1;
+        }
+        return res.status(200).send(responseData);
     }
-    const result = milk_json_1.default.results.slice(0, 7);
-    res.send(result);
+    return res.status(200).send(milk_json_1.default.results);
 });
 app.listen(port, () => {
     console.log(`Server up and running on port ${port}`);

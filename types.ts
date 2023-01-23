@@ -4,3 +4,9 @@ export interface InterfaceMilk {
   storage: number
   id: string
 }
+
+export interface InterfaceResponseData {
+  next?: number,
+  previous?: number,
+  result: InterfaceMilk[]
+}

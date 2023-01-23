@@ -1,9 +1,8 @@
 import express, { Express, Request, Response } from 'express'
-import { type } from 'os';
 const dotenv = require('dotenv')
 const app: Express = express()
 import milkData from './milk.json'
-import { InterfaceMilk } from './types';
+import { InterfaceMilk, InterfaceResponseData } from './types';
 
 dotenv.config()
 
@@ -16,12 +15,22 @@ app.get('/', (req: Request, res: Response) => {
 app.route('/api/milk')
   .get((req: Request, res: Response) => {
     if(req.query.limit && req.query.page) {
-      const num = +req.query.limit
-      const pag = +req.query.page
+      const limit = +req.query.limit
+      const page = +req.query.page
+      const startIndex = (page - 1) * limit
+      const endIndex = page * limit
+      const responseData: InterfaceResponseData = {
+        result: milkData.results.slice(startIndex, endIndex)
+      }
+      if (startIndex > 0) {
+        responseData.previous = page - 1
+      }
+      if (endIndex < milkData.results.length) {
+        responseData.next = page + 1
+      }
+      return res.status(200).send(responseData)
     }
-    const result = milkData.results.slice(0,7)
-
-    res.send(result)
+    return res.status(200).send(milkData.results)
   })
 
 app.listen(port, () => {
