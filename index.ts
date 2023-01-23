@@ -67,12 +67,19 @@ const paginateData = async (req: Request, res: Response, next: NextFunction) => 
 app.use(paginateData)
 
 app.get('/', (req: Request, res: Response) => {
-  res.json(milkData);
+  res.status(200).send({message: "api resources can be found at /api/milk"});
 })
 
 app.route('/api/milk')
   .get(async (req: Request, res: Response) => {
-    res.json(res.respondWithData)
+    res.status(200).json(res.respondWithData)
+  })
+
+app.route('/api/milk/:id')
+  .get(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const result = await Milk.findOne({ id: id })
+    res.status(200).json(result)
   })
 
 app.listen(port, () => {

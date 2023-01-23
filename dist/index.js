@@ -15,24 +15,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const dotenv = require('dotenv');
 const app = (0, express_1.default)();
-const milk_json_1 = __importDefault(require("./milk.json"));
 dotenv.config();
 const mongoose_1 = __importDefault(require("mongoose"));
 const Milk = require('./milk.schema');
 mongoose_1.default.set('strictQuery', false);
 mongoose_1.default.connect(process.env.MONGO_URI);
-const db = mongoose_1.default.connection;
-db.once('open', () => __awaiter(void 0, void 0, void 0, function* () {
-    milk_json_1.default.results.forEach((result) => __awaiter(void 0, void 0, void 0, function* () {
-        yield Milk.create({
-            name: result.name,
-            type: result.type,
-            storage: result.storage,
-            id: result.id
-        });
-    }));
-    console.log('done');
-}));
+// !! To be removed
+// ** populating mongoDB database with simple loop on json mock data.
+// const db = mongoose.connection
+// db.once('open', async () => {
+//   milkData.results.forEach( async result => {
+//    await Milk.create({
+//       name: result.name,
+//       type: result.type,
+//       storage: result.storage,
+//       id: result.id
+//     })
+//   })
+//   console.log('done')
+// })
 const port = process.env.PORT || 8080;
 const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -62,11 +63,17 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
 });
 app.use(paginateData);
 app.get('/', (req, res) => {
-    res.json(milk_json_1.default);
+    res.status(200).send({ message: "api resources can be found at /api/milk" });
 });
 app.route('/api/milk')
     .get((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    res.json(res.respondWithData);
+    res.status(200).json(res.respondWithData);
+}));
+app.route('/api/milk/:id')
+    .get((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const id = req.params.id;
+    const result = yield Milk.findOne({ id: id });
+    res.status(200).json(result);
 }));
 app.listen(port, () => {
     console.log(`Server up and running on port ${port}`);
