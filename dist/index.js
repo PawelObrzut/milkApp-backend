@@ -17,27 +17,49 @@ const dotenv = require('dotenv');
 const app = (0, express_1.default)();
 const milk_json_1 = __importDefault(require("./milk.json"));
 dotenv.config();
+const mongoose_1 = __importDefault(require("mongoose"));
+const Milk = require('./milk.schema');
+mongoose_1.default.set('strictQuery', false);
+mongoose_1.default.connect(process.env.MONGO_URI);
+const db = mongoose_1.default.connection;
+db.once('open', () => __awaiter(void 0, void 0, void 0, function* () {
+    milk_json_1.default.results.forEach((result) => __awaiter(void 0, void 0, void 0, function* () {
+        yield Milk.create({
+            name: result.name,
+            type: result.type,
+            storage: result.storage,
+            id: result.id
+        });
+    }));
+    console.log('done');
+}));
 const port = process.env.PORT || 8080;
-const paginateData = (req, res, next) => {
-    if (req.query.limit && req.query.page) {
-        const limit = +req.query.limit;
-        const page = +req.query.page;
-        const startIndex = (page - 1) * limit;
-        const endIndex = page * limit;
-        const responseData = {
-            result: milk_json_1.default.results.slice(startIndex, endIndex)
-        };
-        if (startIndex > 0) {
-            responseData.previous = page - 1;
+const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        if (req.query.limit && req.query.page) {
+            const limit = +req.query.limit;
+            const page = +req.query.page;
+            const startIndex = (page - 1) * limit;
+            const endIndex = page * limit;
+            const responseData = {
+                result: yield Milk.find().limit(limit).skip(startIndex)
+            };
+            if (startIndex > 0) {
+                responseData.previous = page - 1;
+            }
+            if (endIndex < (yield Milk.countDocuments())) {
+                responseData.next = page + 1;
+            }
+            res.respondWithData = responseData;
+            next();
         }
-        if (endIndex < milk_json_1.default.results.length) {
-            responseData.next = page + 1;
-        }
-        res.respondWithData = responseData;
+        res.respondWithData = { result: yield Milk.find() };
         next();
     }
-    next();
-};
+    catch (err) {
+        // next write custom error middleware
+    }
+});
 app.use(paginateData);
 app.get('/', (req, res) => {
     res.json(milk_json_1.default);
