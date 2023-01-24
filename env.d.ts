@@ -7,4 +7,10 @@ declare global {
   }
 }
 
+declare module 'express-serve-static-core' {
+  export interface Response {
+    respondWithData?: InterfaceResponseData
+  }
+}
+
 export {}

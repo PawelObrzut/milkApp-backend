@@ -25,7 +25,7 @@ class ErrorMessage {
         this.message = message;
     }
 }
-const connectToMongoDB = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+const connectToMongoDB = (_req, _res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         yield mongoose_1.default.set('strictQuery', false);
         yield mongoose_1.default.connect(process.env.MONGO_URI);
@@ -66,13 +66,13 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
 });
 app.use(connectToMongoDB);
 app.use(paginateData);
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
     return res.status(200).send({ message: 'api resources can be found at /api/milk' });
 });
 app.route('/api/milk')
-    .get((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    .get((_req, res) => {
     return res.status(200).json(res.respondWithData);
-}));
+});
 app.route('/api/milk/:id')
     .get((req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
