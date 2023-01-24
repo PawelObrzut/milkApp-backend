@@ -15,12 +15,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const dotenv = require('dotenv');
 const app = (0, express_1.default)();
-dotenv.config();
 const mongoose_1 = __importDefault(require("mongoose"));
+dotenv.config();
 const Milk = require('./milk.schema');
-// !! for proper error handling I guess these two lines should be in a separate middleware
-mongoose_1.default.set('strictQuery', false);
-mongoose_1.default.connect(process.env.MONGO_URI);
 const port = process.env.PORT || 8080;
 class ErrorMessage {
     constructor(status, message) {
@@ -28,6 +25,19 @@ class ErrorMessage {
         this.message = message;
     }
 }
+const connectToMongoDB = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        yield mongoose_1.default.set('strictQuery', false);
+        yield mongoose_1.default.connect(process.env.MONGO_URI);
+        if (mongoose_1.default.connection.readyState !== 1) {
+            throw new ErrorMessage(500, 'Database is not available. Try again later');
+        }
+        return next();
+    }
+    catch (error) {
+        return next(error);
+    }
+});
 const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         if (req.query.limit && req.query.page) {
@@ -51,9 +61,10 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
         return next();
     }
     catch (error) {
-        throw new ErrorMessage(404, 'milk not found');
+        return next(error);
     }
 });
+app.use(connectToMongoDB);
 app.use(paginateData);
 app.get('/', (req, res) => {
     return res.status(200).send({ message: 'api resources can be found at /api/milk' });
@@ -63,19 +74,21 @@ app.route('/api/milk')
     return res.status(200).json(res.respondWithData);
 }));
 app.route('/api/milk/:id')
-    .get((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    .get((req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const id = req.params.id;
         const result = yield Milk.findOne({ id: id });
+        if (!result) {
+            throw new ErrorMessage(404, 'Milk not found');
+        }
         return res.status(200).json(result);
     }
-    catch (err) {
-        throw new ErrorMessage(404, 'milk not found');
+    catch (error) {
+        return next(error);
     }
 }));
 app.get('*', (_req, _res, next) => {
-    const error = new ErrorMessage(400, 'This endpoint is not served');
-    return next(error);
+    throw new ErrorMessage(400, 'This endpoint is not served');
 });
 app.use((error, _req, res, _next) => {
     return res.status(error.statusCode).send({ message: error.message });

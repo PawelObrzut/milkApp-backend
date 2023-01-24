@@ -3,15 +3,9 @@ import { Response } from 'express-serve-static-core';
 const dotenv = require('dotenv')
 const app: Express = express()
 import { InterfaceResponseData, InterfaceErrorMessage } from './types';
-dotenv.config()
-
 import mongoose from 'mongoose'
+dotenv.config()
 const Milk = require('./milk.schema')
-
-// !! for proper error handling I guess these two lines should be in a separate middleware
-mongoose.set('strictQuery', false)
-mongoose.connect(process.env.MONGO_URI)
-
 const port = process.env.PORT || 8080
 
 class ErrorMessage implements InterfaceErrorMessage {
@@ -32,6 +26,19 @@ declare module 'express-serve-static-core' {
 export interface CustomErrorRequestHandler extends ErrorRequestHandler {
   statusCode: number,
   message: string
+}
+
+const connectToMongoDB = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await mongoose.set('strictQuery', false)
+    await mongoose.connect(process.env.MONGO_URI)
+    if (mongoose.connection.readyState !== 1) {
+      throw new ErrorMessage(500, 'Database is not available. Try again later')
+    }
+    return next();
+  } catch (error) {
+    return next(error)
+  }
 }
 
 const paginateData = async (req: Request, res: Response, next: NextFunction) => {
@@ -60,10 +67,11 @@ const paginateData = async (req: Request, res: Response, next: NextFunction) => 
     res.respondWithData = {result: await Milk.find()}
     return next();
   } catch (error) {
-    throw new ErrorMessage(404, 'milk not found')
+    return next(error)
   }
 }
 
+app.use(connectToMongoDB)
 app.use(paginateData)
 
 app.get('/', (req: Request, res: Response) => {
@@ -76,19 +84,21 @@ app.route('/api/milk')
   })
 
 app.route('/api/milk/:id')
-  .get(async (req: Request, res: Response) => {
+  .get(async (req: Request, res: Response, next: NextFunction) => {
     try{
       const id = req.params.id;
       const result = await Milk.findOne({ id: id })
+      if (!result) {
+        throw new ErrorMessage(404, 'Milk not found');
+      }
       return res.status(200).json(result)
-    } catch (err) {
-      throw new ErrorMessage(404, 'milk not found')
+    } catch (error) {
+      return next(error)
     }
   })
 
-app.get('*', (_req, _res, next) => {
-  const error = new ErrorMessage(400, 'This endpoint is not served');
-  return next(error);
+app.get('*', (_req: Request, _res:Response, next:NextFunction) => {
+  throw new ErrorMessage(400, 'This endpoint is not served');
 });
 
 app.use((error: CustomErrorRequestHandler, _req: Request, res:Response, _next:NextFunction) => {
