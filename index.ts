@@ -2,8 +2,10 @@ import express, { Express, NextFunction, Request, ErrorRequestHandler } from 'ex
 import { Response } from 'express-serve-static-core'
 const dotenv = require('dotenv')
 const app: Express = express()
+const cors = require('cors')
 import { InterfaceResponseData, InterfaceErrorMessage } from './types'
 import mongoose from 'mongoose'
+import { count } from 'console'
 dotenv.config()
 const Milk = require('./milk.schema')
 const port = process.env.PORT || 8080
@@ -42,27 +44,30 @@ const paginateData = async (req: Request, res: Response, next: NextFunction) => 
       const page = +req.query.page
       const startIndex = (page - 1) * limit
       const endIndex = page * limit
+      const count = await Milk.countDocuments()
   
       const responseData: InterfaceResponseData = {
+        count,
         result: await Milk.find().limit(limit).skip(startIndex)
       }
       if (startIndex > 0) {
         responseData.previous = page - 1
       }
-      if (endIndex < await Milk.countDocuments()) {
+      if (endIndex < count) {
         responseData.next = page + 1
       }
   
       res.respondWithData = responseData
       return next()
     }
-    res.respondWithData = {result: await Milk.find()}
+    res.respondWithData = {result: await Milk.find(), count}
     return next()
   } catch (error) {
     return next(error)
   }
 }
 
+app.use(cors())
 app.use(connectToMongoDB)
 app.use(paginateData)
 

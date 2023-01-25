@@ -15,7 +15,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const dotenv = require('dotenv');
 const app = (0, express_1.default)();
+const cors = require('cors');
 const mongoose_1 = __importDefault(require("mongoose"));
+const console_1 = require("console");
 dotenv.config();
 const Milk = require('./milk.schema');
 const port = process.env.PORT || 8080;
@@ -45,25 +47,28 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
             const page = +req.query.page;
             const startIndex = (page - 1) * limit;
             const endIndex = page * limit;
+            const count = yield Milk.countDocuments();
             const responseData = {
+                count,
                 result: yield Milk.find().limit(limit).skip(startIndex)
             };
             if (startIndex > 0) {
                 responseData.previous = page - 1;
             }
-            if (endIndex < (yield Milk.countDocuments())) {
+            if (endIndex < count) {
                 responseData.next = page + 1;
             }
             res.respondWithData = responseData;
             return next();
         }
-        res.respondWithData = { result: yield Milk.find() };
+        res.respondWithData = { result: yield Milk.find(), count: console_1.count };
         return next();
     }
     catch (error) {
         return next(error);
     }
 });
+app.use(cors());
 app.use(connectToMongoDB);
 app.use(paginateData);
 app.get('/', (_req, res) => {

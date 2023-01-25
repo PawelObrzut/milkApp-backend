@@ -10,6 +10,7 @@ export interface InterfaceMilk {
 export interface InterfaceResponseData {
   next?: number,
   previous?: number,
+  count?: number,
   result: InterfaceMilk[],
 }
 
