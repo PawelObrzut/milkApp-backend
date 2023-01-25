@@ -8,6 +8,8 @@ export interface InterfaceMilk {
 }
 
 export interface InterfaceResponseData {
+  limit?: number,
+  page?: number,
   next?: number,
   previous?: number,
   count?: number,

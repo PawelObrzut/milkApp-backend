@@ -47,6 +47,8 @@ const paginateData = async (req: Request, res: Response, next: NextFunction) => 
       const count = await Milk.countDocuments()
   
       const responseData: InterfaceResponseData = {
+        limit,
+        page,
         count,
         result: await Milk.find().limit(limit).skip(startIndex)
       }
@@ -60,7 +62,7 @@ const paginateData = async (req: Request, res: Response, next: NextFunction) => 
       res.respondWithData = responseData
       return next()
     }
-    res.respondWithData = {result: await Milk.find(), count}
+    res.respondWithData = {count: await Milk.countDocuments(), result: await Milk.find()}
     return next()
   } catch (error) {
     return next(error)

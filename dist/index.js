@@ -17,7 +17,6 @@ const dotenv = require('dotenv');
 const app = (0, express_1.default)();
 const cors = require('cors');
 const mongoose_1 = __importDefault(require("mongoose"));
-const console_1 = require("console");
 dotenv.config();
 const Milk = require('./milk.schema');
 const port = process.env.PORT || 8080;
@@ -49,6 +48,8 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
             const endIndex = page * limit;
             const count = yield Milk.countDocuments();
             const responseData = {
+                limit,
+                page,
                 count,
                 result: yield Milk.find().limit(limit).skip(startIndex)
             };
@@ -61,7 +62,7 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
             res.respondWithData = responseData;
             return next();
         }
-        res.respondWithData = { result: yield Milk.find(), count: console_1.count };
+        res.respondWithData = { count: yield Milk.countDocuments(), result: yield Milk.find() };
         return next();
     }
     catch (error) {
