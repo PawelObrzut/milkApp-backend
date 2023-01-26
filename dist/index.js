@@ -102,11 +102,11 @@ app.route('/api/milk')
     .get((_req, res) => {
     return res.status(200).json(res.respondWithData);
 });
-app.route('/api/milk/:id')
+app.route('/api/milk/:name')
     .get((req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const id = req.params.id;
-        const result = yield Milk.findOne({ id: id });
+        const name = req.params.name;
+        const result = yield Milk.findOne({ name: new RegExp(name, 'i') });
         if (!result) {
             throw new ErrorMessage(404, 'Milk not found');
         }

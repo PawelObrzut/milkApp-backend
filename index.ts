@@ -107,11 +107,11 @@ app.route('/api/milk')
     return res.status(200).json(res.respondWithData)
   })
 
-app.route('/api/milk/:id')
+app.route('/api/milk/:name')
   .get(async (req: Request, res: Response, next: NextFunction) => {
     try{
-      const id = req.params.id
-      const result = await Milk.findOne({ id: id })
+      const name = req.params.name
+      const result = await Milk.findOne({ name: new RegExp(name, 'i') })
       if (!result) {
         throw new ErrorMessage(404, 'Milk not found')
       }
