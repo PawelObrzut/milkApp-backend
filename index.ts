@@ -5,7 +5,6 @@ const app: Express = express()
 const cors = require('cors')
 import { InterfaceResponseData, InterfaceErrorMessage } from './types'
 import mongoose from 'mongoose'
-import { count } from 'console'
 dotenv.config()
 const Milk = require('./milk.schema')
 const port = process.env.PORT || 8080
@@ -19,7 +18,7 @@ class ErrorMessage implements InterfaceErrorMessage {
   }
 }
 
-export interface CustomErrorRequestHandler extends ErrorRequestHandler {
+interface CustomErrorRequestHandler extends ErrorRequestHandler {
   statusCode: number,
   message: string,
 }
@@ -35,6 +34,16 @@ const connectToMongoDB = async (_req: Request, _res: Response, next: NextFunctio
   } catch (error) {
     return next(error)
   }
+}
+
+interface InterfaceValidatingQuery {
+  page?: string
+  limit?: string
+  filter?: string
+}
+
+const validatingQuery = (query: InterfaceValidatingQuery) => {
+  // refactor paginateData => to be continued...
 }
 
 const paginateData = async (req: Request, res: Response, next: NextFunction) => {
@@ -87,7 +96,7 @@ const paginateData = async (req: Request, res: Response, next: NextFunction) => 
       res.respondWithData = responseData
       return next()
     }
-    res.respondWithData = {count: await Milk.countDocuments(), result: await Milk.find()}
+    res.respondWithData = {count: await Milk.countDocuments().exec(), result: await Milk.find().exec()}
     return next()
   } catch (error) {
     return next(error)
@@ -99,7 +108,7 @@ app.use(connectToMongoDB)
 app.use(paginateData)
 
 app.get('/', (_req: Request, res: Response) => {
-  return res.status(200).send({message: 'api resources can be found at /api/milk'});
+  return res.status(200).send({message: 'api resources can be found at /api/milk'})
 })
 
 app.route('/api/milk')
@@ -111,11 +120,15 @@ app.route('/api/milk/:name')
   .get(async (req: Request, res: Response, next: NextFunction) => {
     try{
       const name = req.params.name
-      const result = await Milk.findOne({ name: new RegExp(name, 'i') })
+      const result = await Milk.find({ name: new RegExp(name, 'i') })
       if (!result) {
         throw new ErrorMessage(404, 'Milk not found')
       }
-      return res.status(200).json(result)
+      const respond:InterfaceResponseData = {
+        result: result,
+        count: result.length,
+      }
+      return res.status(200).json(respond)
     } catch (error) {
       return next(error)
     }

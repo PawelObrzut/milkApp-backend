@@ -39,6 +39,9 @@ const connectToMongoDB = (_req, _res, next) => __awaiter(void 0, void 0, void 0,
         return next(error);
     }
 });
+const validatingQuery = (query) => {
+    // refactor paginateData => to be continued...
+};
 const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         if (req.query.limit && req.query.page && req.query.filter) {
@@ -85,7 +88,7 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
             res.respondWithData = responseData;
             return next();
         }
-        res.respondWithData = { count: yield Milk.countDocuments(), result: yield Milk.find() };
+        res.respondWithData = { count: yield Milk.countDocuments().exec(), result: yield Milk.find().exec() };
         return next();
     }
     catch (error) {
@@ -106,11 +109,15 @@ app.route('/api/milk/:name')
     .get((req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const name = req.params.name;
-        const result = yield Milk.findOne({ name: new RegExp(name, 'i') });
+        const result = yield Milk.find({ name: new RegExp(name, 'i') });
         if (!result) {
             throw new ErrorMessage(404, 'Milk not found');
         }
-        return res.status(200).json(result);
+        const respond = {
+            result: result,
+            count: result.length,
+        };
+        return res.status(200).json(respond);
     }
     catch (error) {
         return next(error);
