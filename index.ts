@@ -37,35 +37,45 @@ const connectToMongoDB = async (_req: Request, _res: Response, next: NextFunctio
   }
 }
 
-const filterResults = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    if (req.query.filter) {
-      const request = req.query.filter as string
-      const filter = request.split('+')
-      const filteredResult = await Milk.find({ type: {$in: filter} }).limit(9).skip(2).exec();
-      console.log(filteredResult)
-      res = filteredResult
-      return next()
-    }
-  } catch (error) {
-    return next(error)
-  }
-}
-
 const paginateData = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (req.query.limit && req.query.page && req.query.filter) {
+      const request = req.query.filter as string
+      const filter = request.split('+')
+      const limit = +req.query.limit
+      const page = +req.query.page
+      const startIndex = (page - 1) * limit
+      const endIndex = page * limit
+      const count = await Milk.find({ type: {$in: filter} }).countDocuments().exec()
+
+      const responseData: InterfaceResponseData = {
+        limit,
+        page,
+        count,
+        result: await Milk.find({ type: {$in: filter} }).limit(limit).skip(startIndex).exec()
+      }
+      if (startIndex > 0) {
+        responseData.previous = page - 1
+      }
+      if (endIndex < count) {
+        responseData.next = page + 1
+      }
+  
+      res.respondWithData = responseData
+      return next()
+    }
     if (req.query.limit && req.query.page) {
       const limit = +req.query.limit
       const page = +req.query.page
       const startIndex = (page - 1) * limit
       const endIndex = page * limit
-      const count = await Milk.countDocuments()
+      const count = await Milk.countDocuments().exec()
   
       const responseData: InterfaceResponseData = {
         limit,
         page,
         count,
-        result: await Milk.find().limit(limit).skip(startIndex)
+        result: await Milk.find().limit(limit).skip(startIndex).exec()
       }
       if (startIndex > 0) {
         responseData.previous = page - 1
@@ -86,7 +96,6 @@ const paginateData = async (req: Request, res: Response, next: NextFunction) => 
 
 app.use(cors())
 app.use(connectToMongoDB)
-app.use(filterResults)
 app.use(paginateData)
 
 app.get('/', (_req: Request, res: Response) => {

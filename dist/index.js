@@ -39,34 +39,42 @@ const connectToMongoDB = (_req, _res, next) => __awaiter(void 0, void 0, void 0,
         return next(error);
     }
 });
-const filterResults = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        if (req.query.filter) {
-            const request = req.query.filter;
-            const filter = request.split('+');
-            const filteredResult = yield Milk.find({ type: { $in: filter } }).limit(9).skip(2).exec();
-            console.log(filteredResult);
-            res = filteredResult;
-            return next();
-        }
-    }
-    catch (error) {
-        return next(error);
-    }
-});
 const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        if (req.query.limit && req.query.page && req.query.filter) {
+            const request = req.query.filter;
+            const filter = request.split('+');
+            const limit = +req.query.limit;
+            const page = +req.query.page;
+            const startIndex = (page - 1) * limit;
+            const endIndex = page * limit;
+            const count = yield Milk.find({ type: { $in: filter } }).countDocuments().exec();
+            const responseData = {
+                limit,
+                page,
+                count,
+                result: yield Milk.find({ type: { $in: filter } }).limit(limit).skip(startIndex).exec()
+            };
+            if (startIndex > 0) {
+                responseData.previous = page - 1;
+            }
+            if (endIndex < count) {
+                responseData.next = page + 1;
+            }
+            res.respondWithData = responseData;
+            return next();
+        }
         if (req.query.limit && req.query.page) {
             const limit = +req.query.limit;
             const page = +req.query.page;
             const startIndex = (page - 1) * limit;
             const endIndex = page * limit;
-            const count = yield Milk.countDocuments();
+            const count = yield Milk.countDocuments().exec();
             const responseData = {
                 limit,
                 page,
                 count,
-                result: yield Milk.find().limit(limit).skip(startIndex)
+                result: yield Milk.find().limit(limit).skip(startIndex).exec()
             };
             if (startIndex > 0) {
                 responseData.previous = page - 1;
@@ -86,7 +94,6 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
 });
 app.use(cors());
 app.use(connectToMongoDB);
-app.use(filterResults);
 app.use(paginateData);
 app.get('/', (_req, res) => {
     return res.status(200).send({ message: 'api resources can be found at /api/milk' });
