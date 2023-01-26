@@ -37,6 +37,21 @@ const connectToMongoDB = async (_req: Request, _res: Response, next: NextFunctio
   }
 }
 
+const filterResults = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (req.query.filter) {
+      const request = req.query.filter as string
+      const filter = request.split('+')
+      const filteredResult = await Milk.find({ type: {$in: filter} }).limit(9).skip(2).exec();
+      console.log(filteredResult)
+      res = filteredResult
+      return next()
+    }
+  } catch (error) {
+    return next(error)
+  }
+}
+
 const paginateData = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (req.query.limit && req.query.page) {
@@ -71,6 +86,7 @@ const paginateData = async (req: Request, res: Response, next: NextFunction) => 
 
 app.use(cors())
 app.use(connectToMongoDB)
+app.use(filterResults)
 app.use(paginateData)
 
 app.get('/', (_req: Request, res: Response) => {

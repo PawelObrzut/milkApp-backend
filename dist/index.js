@@ -39,6 +39,21 @@ const connectToMongoDB = (_req, _res, next) => __awaiter(void 0, void 0, void 0,
         return next(error);
     }
 });
+const filterResults = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        if (req.query.filter) {
+            const request = req.query.filter;
+            const filter = request.split('+');
+            const filteredResult = yield Milk.find({ type: { $in: filter } }).limit(9).skip(2).exec();
+            console.log(filteredResult);
+            res = filteredResult;
+            return next();
+        }
+    }
+    catch (error) {
+        return next(error);
+    }
+});
 const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         if (req.query.limit && req.query.page) {
@@ -71,6 +86,7 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
 });
 app.use(cors());
 app.use(connectToMongoDB);
+app.use(filterResults);
 app.use(paginateData);
 app.get('/', (_req, res) => {
     return res.status(200).send({ message: 'api resources can be found at /api/milk' });
