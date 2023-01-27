@@ -1,6 +1,6 @@
 declare global {
   namespace NodeJS {
-    interface ProcessEnv{
+    interface ProcessEnv {
       MONGO_URI: string
       NODE_ENV: 'development' | 'production'
     }
@@ -13,4 +13,4 @@ declare module 'express-serve-static-core' {
   }
 }
 
-export {}
+export {};

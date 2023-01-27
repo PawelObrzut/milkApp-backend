@@ -13,10 +13,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const mongoose_1 = __importDefault(require("mongoose"));
 const dotenv = require('dotenv');
 const app = (0, express_1.default)();
 const cors = require('cors');
-const mongoose_1 = __importDefault(require("mongoose"));
 dotenv.config();
 const Milk = require('./milk.schema');
 const port = process.env.PORT || 8080;
@@ -31,7 +31,7 @@ const connectToMongoDB = (_req, _res, next) => __awaiter(void 0, void 0, void 0,
         yield mongoose_1.default.set('strictQuery', false);
         yield mongoose_1.default.connect(process.env.MONGO_URI);
         if (mongoose_1.default.connection.readyState !== 1) {
-            throw new ErrorMessage(500, 'Database is not available. Try again later');
+            return new ErrorMessage(500, 'Database is not available. Try again later');
         }
         return next();
     }
@@ -56,7 +56,7 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
                 limit,
                 page,
                 count,
-                result: yield Milk.find({ type: { $in: filter } }).limit(limit).skip(startIndex).exec()
+                result: yield Milk.find({ type: { $in: filter } }).limit(limit).skip(startIndex).exec(),
             };
             if (startIndex > 0) {
                 responseData.previous = page - 1;
@@ -77,7 +77,7 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
                 limit,
                 page,
                 count,
-                result: yield Milk.find().limit(limit).skip(startIndex).exec()
+                result: yield Milk.find().limit(limit).skip(startIndex).exec(),
             };
             if (startIndex > 0) {
                 responseData.previous = page - 1;
@@ -88,7 +88,10 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
             res.respondWithData = responseData;
             return next();
         }
-        res.respondWithData = { count: yield Milk.countDocuments().exec(), result: yield Milk.find().exec() };
+        res.respondWithData = {
+            count: yield Milk.countDocuments().exec(),
+            result: yield Milk.find().exec(),
+        };
         return next();
     }
     catch (error) {
@@ -98,23 +101,19 @@ const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
 app.use(cors());
 app.use(connectToMongoDB);
 app.use(paginateData);
-app.get('/', (_req, res) => {
-    return res.status(200).send({ message: 'api resources can be found at /api/milk' });
-});
+app.get('/', (_req, res) => res.status(200).send({ message: 'api resources can be found at /api/milk' }));
 app.route('/api/milk')
-    .get((_req, res) => {
-    return res.status(200).json(res.respondWithData);
-});
+    .get((_req, res) => res.status(200).json(res.respondWithData));
 app.route('/api/milk/:name')
     .get((req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const name = req.params.name;
+        const { name } = req.params;
         const result = yield Milk.find({ name: new RegExp(name, 'i') });
         if (!result) {
-            throw new ErrorMessage(404, 'Milk not found');
+            return new ErrorMessage(404, 'Milk not found');
         }
         const respond = {
-            result: result,
+            result,
             count: result.length,
         };
         return res.status(200).json(respond);
@@ -123,12 +122,10 @@ app.route('/api/milk/:name')
         return next(error);
     }
 }));
-app.get('*', (_req, _res, next) => {
-    throw new ErrorMessage(400, 'This endpoint is not served');
-});
-app.use((error, _req, res, _next) => {
-    return res.status(error.statusCode).send({ message: error.message });
-});
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.get('*', (_req, _res, _next) => new ErrorMessage(400, 'This endpoint is not served'));
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, max-len
+app.use((error, _req, res, _next) => res.status(error.statusCode).send({ message: error.message }));
 app.listen(port, () => {
     console.log(`Server up and running on port ${port}`);
 });
