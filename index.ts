@@ -3,7 +3,7 @@ import express, {
 } from 'express';
 import { Response } from 'express-serve-static-core';
 import mongoose from 'mongoose';
-import { InterfaceResponseData, InterfaceErrorMessage } from './types';
+import { InterfaceResponseData, InterfaceErrorMessage, InterfaceMilk } from './types';
 
 const dotenv = require('dotenv');
 
@@ -35,88 +35,58 @@ const connectToMongoDB = async (_req: Request, _res: Response, next: NextFunctio
   try {
     await mongoose.set('strictQuery', false);
     await mongoose.connect(process.env.MONGO_URI);
+
     if (mongoose.connection.readyState !== 1) {
       return new ErrorMessage(500, 'Database is not available. Try again later');
     }
+
     return next();
   } catch (error) {
     return next(error);
   }
 };
 
-interface InterfaceValidatingQuery {
-  page?: string
-  limit?: string
-  filter?: string
-}
-
-const validatingQuery = (query: InterfaceValidatingQuery) => {
-  // refactor paginateData => to be continued...
-};
-
-const paginateData = async (req: Request, res: Response, next: NextFunction) => {
+const formatResponseData = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (req.query.limit && req.query.page && req.query.filter) {
-      const request = req.query.filter as string;
-      const filter = request.split('+');
-      const limit = +req.query.limit;
-      const page = +req.query.page;
-      const startIndex = (page - 1) * limit;
-      const endIndex = page * limit;
-      const count = await Milk.find({ type: { $in: filter } }).countDocuments().exec();
+    const { page = '1', limit = '10' } = req.query;
+    const startIndex = (+page - 1) * +limit;
+    const endIndex = +page * +limit;
+    const filter = req.query.filter as string | undefined;
+    let result: InterfaceMilk[] = [];
+    let count = 0;
 
-      const responseData: InterfaceResponseData = {
-        limit,
-        page,
-        count,
-        result: await Milk.find({ type: { $in: filter } }).limit(limit).skip(startIndex).exec(),
-      };
-      if (startIndex > 0) {
-        responseData.previous = page - 1;
-      }
-      if (endIndex < count) {
-        responseData.next = page + 1;
-      }
-
-      res.respondWithData = responseData;
-      return next();
+    if (filter) {
+      result = await Milk.find({ type: { $in: filter.split('+') } }).limit(limit).skip(startIndex).exec();
+      count = await Milk.find({ type: { $in: filter.split('+') } }).countDocuments().exec();
+    } else {
+      result = await Milk.find().limit(+limit).skip(startIndex).exec();
+      count = await Milk.find().countDocuments().exec();
     }
-    if (req.query.limit && req.query.page) {
-      const limit = +req.query.limit;
-      const page = +req.query.page;
-      const startIndex = (page - 1) * limit;
-      const endIndex = page * limit;
-      const count = await Milk.countDocuments().exec();
 
-      const responseData: InterfaceResponseData = {
-        limit,
-        page,
-        count,
-        result: await Milk.find().limit(limit).skip(startIndex).exec(),
-      };
-      if (startIndex > 0) {
-        responseData.previous = page - 1;
-      }
-      if (endIndex < count) {
-        responseData.next = page + 1;
-      }
-
-      res.respondWithData = responseData;
-      return next();
-    }
-    res.respondWithData = {
-      count: await Milk.countDocuments().exec(),
-      result: await Milk.find().exec(),
+    const responseData: InterfaceResponseData = {
+      limit: +limit,
+      page: +page,
+      count,
+      result,
     };
-    return next();
+
+    if (startIndex > 0) {
+      responseData.previous = +page - 1;
+    }
+    if (endIndex < count) {
+      responseData.next = +page + 1;
+    }
+
+    res.respondWithData = responseData;
+    next();
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };
 
 app.use(cors());
 app.use(connectToMongoDB);
-app.use(paginateData);
+app.use(formatResponseData);
 
 app.get('/', (_req: Request, res: Response) => res.status(200).send({ message: 'api resources can be found at /api/milk' }));
 
@@ -147,6 +117,4 @@ app.get('*', (_req: Request, _res:Response, _next:NextFunction) => new ErrorMess
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, max-len
 app.use((error: CustomErrorRequestHandler, _req: Request, res:Response, _next:NextFunction) => res.status(error.statusCode).send({ message: error.message }));
 
-app.listen(port, () => {
-  console.log(`Server up and running on port ${port}`);
-});
+app.listen(port);

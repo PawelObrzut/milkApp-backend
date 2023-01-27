@@ -1,5 +1,3 @@
-import { StringExpressionOperator } from 'mongoose';
-
 export interface InterfaceMilk {
   name: string,
   type: string,

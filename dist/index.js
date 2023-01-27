@@ -39,68 +39,44 @@ const connectToMongoDB = (_req, _res, next) => __awaiter(void 0, void 0, void 0,
         return next(error);
     }
 });
-const validatingQuery = (query) => {
-    // refactor paginateData => to be continued...
-};
-const paginateData = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+const formatResponseData = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        if (req.query.limit && req.query.page && req.query.filter) {
-            const request = req.query.filter;
-            const filter = request.split('+');
-            const limit = +req.query.limit;
-            const page = +req.query.page;
-            const startIndex = (page - 1) * limit;
-            const endIndex = page * limit;
-            const count = yield Milk.find({ type: { $in: filter } }).countDocuments().exec();
-            const responseData = {
-                limit,
-                page,
-                count,
-                result: yield Milk.find({ type: { $in: filter } }).limit(limit).skip(startIndex).exec(),
-            };
-            if (startIndex > 0) {
-                responseData.previous = page - 1;
-            }
-            if (endIndex < count) {
-                responseData.next = page + 1;
-            }
-            res.respondWithData = responseData;
-            return next();
+        const { page = '1', limit = '10' } = req.query;
+        const startIndex = (+page - 1) * +limit;
+        const endIndex = +page * +limit;
+        const filter = req.query.filter;
+        let result = [];
+        let count = 0;
+        if (filter) {
+            result = yield Milk.find({ type: { $in: filter.split('+') } }).limit(limit).skip(startIndex).exec();
+            count = yield Milk.find({ type: { $in: filter.split('+') } }).countDocuments().exec();
         }
-        if (req.query.limit && req.query.page) {
-            const limit = +req.query.limit;
-            const page = +req.query.page;
-            const startIndex = (page - 1) * limit;
-            const endIndex = page * limit;
-            const count = yield Milk.countDocuments().exec();
-            const responseData = {
-                limit,
-                page,
-                count,
-                result: yield Milk.find().limit(limit).skip(startIndex).exec(),
-            };
-            if (startIndex > 0) {
-                responseData.previous = page - 1;
-            }
-            if (endIndex < count) {
-                responseData.next = page + 1;
-            }
-            res.respondWithData = responseData;
-            return next();
+        else {
+            result = yield Milk.find().limit(+limit).skip(startIndex).exec();
+            count = yield Milk.find().countDocuments().exec();
         }
-        res.respondWithData = {
-            count: yield Milk.countDocuments().exec(),
-            result: yield Milk.find().exec(),
+        const responseData = {
+            limit: +limit,
+            page: +page,
+            count,
+            result,
         };
-        return next();
+        if (startIndex > 0) {
+            responseData.previous = +page - 1;
+        }
+        if (endIndex < count) {
+            responseData.next = +page + 1;
+        }
+        res.respondWithData = responseData;
+        next();
     }
     catch (error) {
-        return next(error);
+        next(error);
     }
 });
 app.use(cors());
 app.use(connectToMongoDB);
-app.use(paginateData);
+app.use(formatResponseData);
 app.get('/', (_req, res) => res.status(200).send({ message: 'api resources can be found at /api/milk' }));
 app.route('/api/milk')
     .get((_req, res) => res.status(200).json(res.respondWithData));
@@ -126,6 +102,4 @@ app.route('/api/milk/:name')
 app.get('*', (_req, _res, _next) => new ErrorMessage(400, 'This endpoint is not served'));
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, max-len
 app.use((error, _req, res, _next) => res.status(error.statusCode).send({ message: error.message }));
-app.listen(port, () => {
-    console.log(`Server up and running on port ${port}`);
-});
+app.listen(port);
