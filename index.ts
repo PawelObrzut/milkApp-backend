@@ -10,6 +10,10 @@ const dotenv = require('dotenv');
 const app: Express = express();
 const cors = require('cors');
 
+const corsOptions = {
+  origin: 'https://milkapp.onrender.com',
+};
+
 dotenv.config();
 const Milk = require('./milk.schema');
 
@@ -84,16 +88,16 @@ const formatResponseData = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(connectToMongoDB);
 app.use(formatResponseData);
 
 app.get('/', (_req: Request, res: Response) => res.status(200).send({ message: 'api resources can be found at /api/milk' }));
 
-app.route('/api/milk')
+app.route('/api/milks')
   .get((_req: Request, res: Response) => res.status(200).json(res.respondWithData));
 
-app.route('/api/milk/:name')
+app.route('/api/milks/:name')
   .get(async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { name } = req.params;
