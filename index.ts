@@ -11,7 +11,7 @@ const app: Express = express();
 const cors = require('cors');
 
 const corsOptions = {
-  origin: 'https://milkapp.onrender.com',
+  origin: '*',
 };
 
 dotenv.config();
