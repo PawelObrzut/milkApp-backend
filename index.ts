@@ -90,6 +90,20 @@ app.use(formatResponseData);
 
 app.get('/', (_req: Request, res: Response) => res.status(200).send({ message: 'api resources can be found at /api/milks' }));
 
+app.route('/api/milks/:id')
+  .get(async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const result = await Milk.findOne({ id });
+      if (!result) {
+        return new ErrorMessage(404, 'Milk not found');
+      }
+      return res.status(200).json(result);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
 app.route('/api/milks')
   .get((_req: Request, res: Response) => res.status(200).json(res.respondWithData));
 
