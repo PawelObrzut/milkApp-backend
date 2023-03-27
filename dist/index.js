@@ -78,20 +78,6 @@ app.use(cors());
 app.use(connectToMongoDB);
 app.use(formatResponseData);
 app.get('/', (_req, res) => res.status(200).send({ message: 'api resources can be found at /api/milks' }));
-app.route('/api/milks/:id')
-    .get((req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const { id } = req.params;
-        const result = yield Milk.findOne({ id });
-        if (!result) {
-            return new ErrorMessage(404, 'Milk not found');
-        }
-        return res.status(200).json(result);
-    }
-    catch (error) {
-        return next(error);
-    }
-}));
 app.route('/api/milks')
     .get((_req, res) => res.status(200).json(res.respondWithData));
 app.route('/api/milks/:name')
