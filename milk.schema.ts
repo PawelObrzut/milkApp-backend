@@ -7,4 +7,6 @@ const milkSchema = new mongoose.Schema({
   id: String,
 })
 
-module.exports = mongoose.model('Milk', milkSchema)
+const Milk = mongoose.model('Milk', milkSchema);
+
+export default Milk;

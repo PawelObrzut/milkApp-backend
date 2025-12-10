@@ -1,83 +1,72 @@
 import express, {
-  Express, NextFunction, Request, ErrorRequestHandler,
+  Express, Request, Response, NextFunction,
 } from 'express';
-import { Response } from 'express-serve-static-core';
 import mongoose from 'mongoose';
-import { InterfaceResponseData, InterfaceErrorMessage, InterfaceMilk } from './types';
-
-const dotenv = require('dotenv');
-
-const app: Express = express();
-const cors = require('cors');
+import cors from 'cors';
+import dotenv from 'dotenv';
+import MilkModel from './milk.schema';
 
 dotenv.config();
-const Milk = require('./milk.schema');
 
+const app: Express = express();
 const port = process.env.PORT || 8080;
 
-class ErrorMessage implements InterfaceErrorMessage {
+class ErrorMessage extends Error {
   public statusCode: number;
 
-  public message: string;
-
-  constructor(status: number, message: string) {
-    this.statusCode = status;
-    this.message = message;
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.statusCode = statusCode;
   }
 }
 
-interface CustomErrorRequestHandler extends ErrorRequestHandler {
-  statusCode: number,
-  message: string,
-}
-
-const connectToMongoDB = async (_req: Request, _res: Response, next: NextFunction) => {
+const connectToMongoDB = async (
+  _req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    await mongoose.set('strictQuery', false);
-    await mongoose.connect(process.env.MONGO_URI);
+    mongoose.set('strictQuery', false);
+    await mongoose.connect(process.env.MONGO_URI || '');
 
     if (mongoose.connection.readyState !== 1) {
-      return new ErrorMessage(500, 'Database is not available. Try again later');
+      next(new ErrorMessage(500, 'Database is not available. Try again later'));
+      return;
     }
 
-    return next();
+    next();
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };
 
 const formatResponseData = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { page = '1', limit = '10' } = req.query;
-    const startIndex = (+page - 1) * +limit;
-    const endIndex = +page * +limit;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
     const filter = req.query.filter as string | undefined;
-    let result: InterfaceMilk[] = [];
-    let count = 0;
 
+    let query = {};
     if (filter) {
-      result = await Milk.find({ type: { $in: filter.split('+') } }).limit(limit).skip(startIndex).exec();
-      count = await Milk.find({ type: { $in: filter.split('+') } }).countDocuments().exec();
-    } else {
-      result = await Milk.find().limit(+limit).skip(startIndex).exec();
-      count = await Milk.find().countDocuments().exec();
+      query = { type: { $in: filter.split('+') } };
     }
 
-    const responseData: InterfaceResponseData = {
-      limit: +limit,
-      page: +page,
+    const result = await MilkModel.find(query).limit(limit).skip(startIndex).exec();
+    const count = await MilkModel.countDocuments(query).exec();
+
+    const responseData: any = {
+      limit,
+      page,
       count,
       result,
     };
 
-    if (startIndex > 0) {
-      responseData.previous = +page - 1;
-    }
-    if (endIndex < count) {
-      responseData.next = +page + 1;
-    }
+    if (startIndex > 0) responseData.previous = page - 1;
+    if (endIndex < count) responseData.next = page + 1;
 
-    res.respondWithData = responseData;
+    res.locals.respondWithData = responseData;
     next();
   } catch (error) {
     next(error);
@@ -87,34 +76,45 @@ const formatResponseData = async (req: Request, res: Response, next: NextFunctio
 app.use(cors());
 app.use(connectToMongoDB);
 app.use(formatResponseData);
+app.use(express.json());
 
-app.get('/', (_req: Request, res: Response) => res.status(200).send({ message: 'api resources can be found at /api/milks' }));
+app.get('/', (_req: Request, res: Response) => {
+  res.status(200).json({ message: 'API resources can be found at /api/milks' });
+});
 
-app.route('/api/milks')
-  .get((_req: Request, res: Response) => res.status(200).json(res.respondWithData));
+app.get('/api/milks', (_req: Request, res: Response) => {
+  res.status(200).json(res.locals.respondWithData);
+});
 
-app.route('/api/milks/:name')
-  .get(async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { name } = req.params;
-      const result = await Milk.find({ name: new RegExp(name, 'i') });
-      if (!result) {
-        return new ErrorMessage(404, 'Milk not found');
-      }
-      const respond:InterfaceResponseData = {
-        result,
-        count: result.length,
-      };
-      return res.status(200).json(respond);
-    } catch (error) {
-      return next(error);
+app.get('/api/milks/:name', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name } = req.params;
+    const result = await MilkModel.find({ name: new RegExp(name, 'i') }).exec();
+
+    if (!result || result.length === 0) {
+      throw new ErrorMessage(404, 'Milk not found');
     }
-  });
+
+    res.status(200).json({
+      count: result.length,
+      result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.all('*', (_req: Request, _res: Response, next: NextFunction) => {
+  next(new ErrorMessage(404, 'This endpoint is not served'));
+});
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.get('*', (_req: Request, _res:Response, _next:NextFunction) => new ErrorMessage(400, 'This endpoint is not served'));
+app.use((error: any, _req: Request, res: Response, _next: NextFunction) => {
+  const statusCode = error.statusCode || 500;
+  const message = error.message || 'Internal Server Error';
+  res.status(statusCode).json({ message });
+});
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, max-len
-app.use((error: CustomErrorRequestHandler, _req: Request, res:Response, _next:NextFunction) => res.status(error.statusCode).send({ message: error.message }));
-
-app.listen(port);
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});

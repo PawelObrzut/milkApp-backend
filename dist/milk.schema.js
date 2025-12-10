@@ -10,4 +10,5 @@ const milkSchema = new mongoose_1.default.Schema({
     storage: Number,
     id: String,
 });
-module.exports = mongoose_1.default.model('Milk', milkSchema);
+const Milk = mongoose_1.default.model('Milk', milkSchema);
+exports.default = Milk;
